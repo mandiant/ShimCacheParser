@@ -47,7 +47,7 @@ WINXP_ENTRY_SIZE32 = 0x228
 MAX_PATH = 520
 
 g_verbose = False
-output_header  = ["Last Modified","Last Execution","Path","File Size","Execution Flag"]
+output_header  = ["Last Modified","Last Update","Path","File Size","Process Exec Flag"]
 
 ########
 #Shim Cache format used by Windows 5.2 and 6.0 (Server 2003 through Vista/Server 2008)
@@ -110,10 +110,11 @@ def usage():
     print \
 """
 Input Options:
+    -h, --help              Displays this message
     -b, --bin=BIN_FILE      Reads Shim Cache data from a binary BIN_FILE
     -m, --mir=XML           Reads Shim Cache data from a MIR XML file
     -z, --zip=ZIP_FILE      Reads ZIP_FILE containing MIR registry acquisitions
-    -h, --hive=HIVE         Reads Shim Cache data from a registry HIVE
+    -r, --reg=REG_HIVE      Reads Shim Cache data from a registry REG_HIVE
     -l, --local             Reads Shim Cache data from local system
 Output Options:
     -o, --outfile=FILE      Writes to CSV data to FILE (default is STDOUT)
@@ -594,7 +595,7 @@ def main():
         if len(sys.argv) < 2:
             usage()
             sys.exit(1)
-        opts, args = getopt.getopt(sys.argv[1:], "h:m:b:lvo:z:", ["hive=","mir=","bin=","local","verbose","output=","zip="])
+        opts, args = getopt.getopt(sys.argv[1:], "r:m:b:lvho:z:", ["reg=","mir=","bin=","local","verbose","help","output=","zip="])
     except getopt.GetoptError, err:
         print "[-] Argument error: %s"%str(err)
         usage()
@@ -605,7 +606,10 @@ def main():
     output_file = None
 
     for option, arg in opts:
-        if option in ('-h','--hive'):
+        if option in ('-h','--help'):
+            usage()
+            sys.exit(0)
+        elif option in ('-r','--reg'):
             do_hive = True
             param = arg
             options += 1
