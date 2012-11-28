@@ -562,7 +562,7 @@ def read_zip(zip_name):
                 #Catch possibly corrupt MIR XML data.
                 try:
                     out_list = read_mir(xml_file,quiet=True)
-                except(struct.error),err:
+                except(struct.error,xml.etree.ElementTree.ParseError),err:
                     print "[-] Error reading XML data from host: %s, data looks corrupt. Continuing..."%hostname
                     continue
                     
