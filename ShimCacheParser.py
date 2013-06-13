@@ -16,9 +16,10 @@
 # permissions and limitations under the License.
 #
 # Identifies and parses Application Compatibility Shim Cache entries for forensic data.
-
+import os
 import sys
 import csv
+import binascii
 import datetime
 import struct
 from xml.etree.ElementTree import *
@@ -472,6 +473,68 @@ def read_mir(xml_file,quiet=False):
             out_list.insert(0,output_header)
             return out_list
 
+##################
+# Get Shim Cache data from .reg file.
+#  Finds the first key named "AppCompatCache" and parses the
+#  Hex data that immediately follows. Its a brittle parser,
+#  but the .reg format doesn't change too often.
+##################
+def read_from_reg(reg_file,quiet=False):
+    out_list = []
+    tmp_list = []
+    
+    if not os.path.exists(reg_file):
+        return out_list
+    f = open(reg_file, "rb")
+    t = f.read().decode("utf-16")
+    f.close()
+
+    path_name = None
+    relevant_lines = []
+    found_appcompat = False
+    for line in t.split("\r\n"):
+        if "\"AppCompatCache\"=hex:" in line:
+            relevant_lines.append(line.partition(":")[2])
+            found_appcompat = True
+        elif "\\AppCompatCache]" in line:
+            path_name = line.partition("[")[2].partition("]")[0]
+        elif found_appcompat and "," in line:
+            relevant_lines.append(line)
+        elif found_appcompat and len(line) == 0:
+            break
+
+    if len(relevant_lines) == 0 or path_name is None:
+        print "[-] Unable to find value in .reg file: %s"%reg_file
+        return []
+
+    hex_str = "".join(relevant_lines).replace("\\", "").replace(" ", "").replace(",", "")
+    bin_data = binascii.unhexlify(hex_str)
+    tmp_list = ReadCache(bin_data,quiet)
+
+    if g_verbose:
+        for row in tmp_list:
+            row = list(row)
+            row.append(path_name)
+            if row not in out_list:
+                out_list.append(row)
+    else:
+        for row in tmp_list:
+            if row not in out_list:
+                out_list.append(row)
+
+    if len(out_list) == 0:
+        return []
+    else:
+        #Add the header and return the list.
+        if g_verbose:
+            out_list.insert(0,output_header + ["Key Path"])
+            return out_list
+        else:
+        #Only return unique entries.
+            out_list = unique_list(out_list)
+            out_list.insert(0,output_header)
+            return out_list
+
 ###################
 # Acquire the current system's Shim Cache data.
 ###################
@@ -595,13 +658,13 @@ def main():
         if len(sys.argv) < 2:
             usage()
             sys.exit(1)
-        opts, args = getopt.getopt(sys.argv[1:], "r:m:b:lvho:z:", ["reg=","mir=","bin=","local","verbose","help","output=","zip="])
+        opts, args = getopt.getopt(sys.argv[1:], "r:i:m:b:lvho:z:", ["reg=","hive=","mir=","bin=","local","verbose","help","output=","zip="])
     except getopt.GetoptError, err:
         print "[-] Argument error: %s"%str(err)
         usage()
         sys.exit(1)
     global g_verbose
-    do_hive,do_mir,do_zip,do_bin,do_local = False,False,False,False,False
+    do_hive,do_reg,do_mir,do_zip,do_bin,do_local = False,False,False,False,False,False
     options = 0
     output_file = None
 
@@ -609,8 +672,12 @@ def main():
         if option in ('-h','--help'):
             usage()
             sys.exit(0)
-        elif option in ('-r','--reg'):
+        elif option in ('-i','--hive'):
             do_hive = True
+            param = arg
+            options += 1
+        elif option in ('-r','--reg'):
+            do_reg = True
             param = arg
             options += 1
         elif option in ('-m','--mir'):
@@ -693,6 +760,15 @@ def main():
         except IOError, err:
             print "[-] Error opening hive file: %s"%str(err)
             sys.exit(1)
+    #Read the Shim Cache data from a .reg file
+    elif do_reg:
+        print "[+] Reading .reg file: %s..."%param
+        entries = read_from_reg(param)
+        if len(entries) == 0:
+            print "[-] No Shim Cache entries found..."
+        else:
+            write_it(entries,output_file)
+        pass
     #Read the local Shim Cache data from the current system
     elif do_local:
         print "[+] Dumping Shim Cache data from the current system..."
