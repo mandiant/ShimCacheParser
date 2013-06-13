@@ -658,13 +658,13 @@ def main():
         if len(sys.argv) < 2:
             usage()
             sys.exit(1)
-        opts, args = getopt.getopt(sys.argv[1:], "r:m:b:lvho:z:", ["reg=","mir=","bin=","local","verbose","help","output=","zip="])
+        opts, args = getopt.getopt(sys.argv[1:], "r:i:m:b:lvho:z:", ["reg=","hive=","mir=","bin=","local","verbose","help","output=","zip="])
     except getopt.GetoptError, err:
         print "[-] Argument error: %s"%str(err)
         usage()
         sys.exit(1)
     global g_verbose
-    do_hive,do_mir,do_zip,do_bin,do_local = False,False,False,False,False
+    do_hive,do_reg,do_mir,do_zip,do_bin,do_local = False,False,False,False,False,False
     options = 0
     output_file = None
 
@@ -672,7 +672,7 @@ def main():
         if option in ('-h','--help'):
             usage()
             sys.exit(0)
-        elif option in ('-h','--hive'):
+        elif option in ('-i','--hive'):
             do_hive = True
             param = arg
             options += 1
