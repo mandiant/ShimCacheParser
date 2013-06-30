@@ -115,7 +115,8 @@ Input Options:
     -b, --bin=BIN_FILE      Reads Shim Cache data from a binary BIN_FILE
     -m, --mir=XML           Reads Shim Cache data from a MIR XML file
     -z, --zip=ZIP_FILE      Reads ZIP_FILE containing MIR registry acquisitions
-    -r, --reg=REG_HIVE      Reads Shim Cache data from a registry REG_HIVE
+    -i, --hive=REG_HIVE     Reads Shim Cache data from a registry REG_HIVE
+    -r, --reg=REG_HIVE      Reads Shim Cache data from a .reg Registry export file
     -l, --local             Reads Shim Cache data from local system
 Output Options:
     -o, --outfile=FILE      Writes to CSV data to FILE (default is STDOUT)
