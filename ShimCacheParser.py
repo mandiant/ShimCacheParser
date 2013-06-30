@@ -529,7 +529,11 @@ def read_from_reg(reg_file, quiet=False):
                 for row in tmp_list:
                     if row not in out_list:
                         out_list.append(row)
+
+            #reset variables for next block
             found_appcompat = False
+            path_name = None
+            relevant_lines = []
 
     if appcompat_keys <= 0:
         print "[-] Unable to find value in .reg file: %s" % reg_file
