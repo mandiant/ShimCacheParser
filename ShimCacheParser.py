@@ -482,7 +482,6 @@ def read_mir(xml_file, quiet=False):
 ##################
 def read_from_reg(reg_file, quiet=False):
     out_list = []
-    tmp_list = []
 
     if not os.path.exists(reg_file):
         return out_list
