@@ -488,12 +488,16 @@ def read_from_reg(reg_file, quiet=False):
     f = open(reg_file, "rb")
     file_contents = f.read()
     # If the file was a direct export from regedit, etc, then it will be utf-16. If it was created with a script to
-    # unite exports, then it will be ANSI.
-    try:
-        t = file_contents.decode("utf-16")
-    except:
+    # unite exports, then it will be ANSI. Exports for Windows 7 and Windows XP start with "Windows Registry Editor"
+    if file_contents[0:23] == "Windows Registry Editor":
         t = file_contents
+    else:
+        try:
+            t = file_contents.decode("utf-16")
+        except:
+            t = file_contents
     if t[0:23] != "Windows Registry Editor":
+        print t[0:30]
         print "[-] Unable to properly decode .reg file: %s" % reg_file
         return []
     f.close()
@@ -506,7 +510,7 @@ def read_from_reg(reg_file, quiet=False):
         if "\"AppCompatCache\"=hex:" in line:
             relevant_lines.append(line.partition(":")[2])
             found_appcompat = True
-        elif "\\appcompatcache]" in line.lower():
+        elif "\\appcompatcache]" in line.lower() or "\\appcompatibility]" in line.lower():
             # The Registry path is not case sensitive. Case will depend on export parameter.
             path_name = line.partition("[")[2].partition("]")[0]
             appcompat_keys += 1
