@@ -502,12 +502,15 @@ def read_from_reg(reg_file, quiet=False):
     path_name = None
     relevant_lines = []
     found_appcompat = False
+    appcompat_keys = 0
     for line in t.split("\r\n"):
         if "\"AppCompatCache\"=hex:" in line:
             relevant_lines.append(line.partition(":")[2])
             found_appcompat = True
-        elif "\\AppCompatCache]" in line:
+        elif "\\appcompatcache]" in line.lower():
+            # The Registry path is not case sensitive. Case will depend on export parameter.
             path_name = line.partition("[")[2].partition("]")[0]
+            appcompat_keys += 1
         elif found_appcompat and "," in line:
             relevant_lines.append(line)
         elif found_appcompat and len(line) == 0:
@@ -528,7 +531,7 @@ def read_from_reg(reg_file, quiet=False):
                         out_list.append(row)
             found_appcompat = False
 
-    if len(relevant_lines) == 0 or path_name is None:
+    if appcompat_keys <= 0:
         print "[-] Unable to find value in .reg file: %s" % reg_file
         return []
 
