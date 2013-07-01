@@ -507,7 +507,7 @@ def read_from_reg(reg_file, quiet=False):
     found_appcompat = False
     appcompat_keys = 0
     for line in t.split("\r\n"):
-        if "\"AppCompatCache\"=hex:" in line:
+        if "\"appcompatcache\"=hex:" in line.lower():
             relevant_lines.append(line.partition(":")[2])
             found_appcompat = True
         elif "\\appcompatcache]" in line.lower() or "\\appcompatibility]" in line.lower():
