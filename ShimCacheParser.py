@@ -488,16 +488,14 @@ def read_from_reg(reg_file, quiet=False):
     f = open(reg_file, "rb")
     file_contents = f.read()
     f.close()
-    # If the file was a direct export from regedit, etc, then it will be utf-16. If it was created with a script to
-    # unite exports, then it will be ANSI. Exports for Windows 7 and Windows XP start with "Windows Registry Editor"
-    if file_contents[0:23] != "Windows Registry Editor":
-        try:
-            file_contents = file_contents.decode("utf-16")
-        except:
-            pass
-        if file_contents[0:23] != "Windows Registry Editor":
-            print "[-] Unable to properly decode .reg file: %s" % reg_file
-            return []
+    try:
+        file_contents = file_contents.decode("utf-16")
+    except:
+        pass #.reg file should be UTF-16, if it's not, it might be ANSI, which is not fully supported here.
+
+    if not file_contents.startswith("Windows Registry Editor"):
+        print "[-] Unable to properly decode .reg file: %s" % reg_file
+        return []
 
     path_name = None
     relevant_lines = []
