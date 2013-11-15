@@ -23,7 +23,6 @@ import zipfile
 import argparse
 import binascii
 import datetime
-import io
 import cStringIO as sio
 import xml.etree.cElementTree as et
 from os import path
