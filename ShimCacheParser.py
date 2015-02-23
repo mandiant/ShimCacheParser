@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # ShimCacheParser.py
 #
 # Andrew Davis, andrew.davis@mandiant.com
@@ -53,6 +55,11 @@ WIN8_MAGIC = '00ts'
 
 # Magic value used by Windows 8.1
 WIN81_MAGIC = '10ts'
+
+# Magic value used by Windows 10
+WIN10_STATS_SIZE = 0x30
+WIN10_MAGIC = '10ts'
+WIN10_MAGIC2 = 0x30
 
 bad_entry_data = 'N/A'
 g_verbose = False
@@ -231,6 +238,12 @@ def read_cache(cachebin, quiet=False):
             if not quiet:
                 print "[+] Found 32bit Windows XP Shim Cache data..."
             return read_winxp_entries(cachebin)
+
+        # Check the data set to see if it matches the Windows 10 format.
+        elif magic == WIN10_MAGIC2:
+            if not quiet:
+                print "[+] Found Windows 10 Shim Cache data..."
+            return read_win10_entries(cachebin, WIN10_MAGIC)
         
         # Check the data set to see if it matches the Windows 8 format.
         elif len(cachebin) > WIN8_STATS_SIZE and cachebin[WIN8_STATS_SIZE:WIN8_STATS_SIZE+4] == WIN8_MAGIC:
@@ -303,6 +316,60 @@ def read_win8_entries(bin_data, ver_magic):
             last_mod_date = bad_entry_data
 
         row = [last_mod_date, 'N/A', path, 'N/A', exec_flag]
+        entry_list.append(row)
+
+    return entry_list
+
+# Read Windows 10 Apphelp Cache entry formats.
+def read_win10_entries(bin_data, ver_magic):
+    entry_meta_len = 12
+    entry_list = []
+
+    # Skip past the stats in the header
+    cache_data = bin_data[WIN10_STATS_SIZE:]
+
+    data = sio.StringIO(cache_data)
+    while data.tell() < len(cache_data):
+        header = data.read(entry_meta_len)
+        # Read in the entry metadata
+        # Note: the crc32 hash is of the cache entry data
+        magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
+
+        # Check the magic tag
+        if magic != ver_magic:
+            raise Exception("Invalid version magic tag found: 0x%x" % struct.unpack("<L", magic)[0])
+
+        entry_data = sio.StringIO(data.read(entry_len))
+
+        # Read the path length
+        path_len = struct.unpack('<H', entry_data.read(2))[0]
+        if path_len == 0:
+            path = 'None'
+        else:
+            path = entry_data.read(path_len).decode('utf-16le', 'replace').encode('utf-8')
+
+        # # Check for package data
+        # package_len = struct.unpack('<H', entry_data.read(2))[0]
+        # if package_len > 0:
+        #     # Just skip past the package data if present (for now)
+        #     entry_data.seek(package_len, 1)
+
+        # Read the remaining entry data
+        low_datetime, high_datetime, flags = struct.unpack('<LLL', entry_data.read(12))
+
+        # # Check the flag set in CSRSS
+        # if (flags & CSRSS_FLAG):
+        #     exec_flag = 'True'
+        # else:
+        #     exec_flag = 'False'
+
+        last_mod_date = convert_filetime(low_datetime, high_datetime)
+        try:
+            last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+        except ValueError:
+            last_mod_date = bad_entry_data
+
+        row = [last_mod_date, 'N/A', path, 'N/A', flags]
         entry_list.append(row)
 
     return entry_list
