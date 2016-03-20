@@ -54,6 +54,12 @@ WIN8_MAGIC = '00ts'
 # Magic value used by Windows 8.1
 WIN81_MAGIC = '10ts'
 
+# Values used by Windows 10
+WIN10_STATS_SIZE = 0x30
+WIN10_MAGIC = '10ts'
+CACHE_HEADER_SIZE_NT6_4 = 0x30
+CACHE_MAGIC_NT6_4 = 0x30
+
 bad_entry_data = 'N/A'
 g_verbose = False
 output_header  = ["Last Modified", "Last Update", "Path", "File Size", "Exec Flag"]
@@ -244,6 +250,12 @@ def read_cache(cachebin, quiet=False):
                 print "[+] Found Windows 8.1 Apphelp Cache data..."
             return read_win8_entries(cachebin, WIN81_MAGIC)
 
+        # Windows 10 will use a different magic dword, check for it
+        elif len(cachebin) > WIN10_STATS_SIZE and cachebin[WIN10_STATS_SIZE:WIN10_STATS_SIZE+4] == WIN10_MAGIC:
+            if not quiet:
+                print "[+] Found Windows 10 Apphelp Cache data..."
+            return read_win10_entries(cachebin, WIN10_MAGIC)
+
         else:
             print "[-] Got an unrecognized magic value of 0x%x... bailing" % magic
             return None
@@ -303,6 +315,55 @@ def read_win8_entries(bin_data, ver_magic):
             last_mod_date = bad_entry_data
 
         row = [last_mod_date, 'N/A', path, 'N/A', exec_flag]
+        entry_list.append(row)
+
+    return entry_list
+
+# Read Windows 10 Apphelp Cache entry format
+def read_win10_entries(bin_data, ver_magic):
+    offset = 0
+    entry_meta_len = 12
+    entry_list = []
+
+    # Skip past the stats in the header
+    cache_data = bin_data[WIN10_STATS_SIZE:]
+
+    data = sio.StringIO(cache_data)
+    while data.tell() < len(cache_data):
+        header = data.read(entry_meta_len)
+        # Read in the entry metadata
+        # Note: the crc32 hash is of the cache entry data
+        magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
+
+        # Check the magic tag
+        if magic != ver_magic:
+            raise Exception("Invalid version magic tag found: 0x%x" % struct.unpack("<L", magic)[0])
+
+        entry_data = sio.StringIO(data.read(entry_len))
+
+        # Read the path length
+        path_len = struct.unpack('<H', entry_data.read(2))[0]
+        if path_len == 0:
+            path = 'None'
+        else:
+            path = entry_data.read(path_len).decode('utf-16le', 'replace').encode('utf-8')
+
+        print "PATH: %s" % path
+
+        # Read the remaining entry data
+        low_datetime, high_datetime = struct.unpack('<LL', entry_data.read(8))
+
+        last_mod_date = convert_filetime(low_datetime, high_datetime)
+        try:
+            last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+        except ValueError:
+            last_mod_date = bad_entry_data
+
+        # Skip the unrecognized Microsoft App entry format for now
+        if last_mod_date == bad_entry_data:
+            continue
+
+        row = [last_mod_date, 'N/A', path, 'N/A', 'N/A']
         entry_list.append(row)
 
     return entry_list
@@ -860,3 +921,4 @@ def main():
         
 if __name__ == '__main__':
     main()
+    
