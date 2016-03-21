@@ -348,8 +348,6 @@ def read_win10_entries(bin_data, ver_magic):
         else:
             path = entry_data.read(path_len).decode('utf-16le', 'replace').encode('utf-8')
 
-        print "PATH: %s" % path
-
         # Read the remaining entry data
         low_datetime, high_datetime = struct.unpack('<LL', entry_data.read(8))
 
