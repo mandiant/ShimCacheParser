@@ -23,6 +23,7 @@ import zipfile
 import argparse
 import binascii
 import datetime
+import codecs
 import cStringIO as sio
 import xml.etree.cElementTree as et
 from os import path
@@ -62,6 +63,7 @@ CACHE_MAGIC_NT6_4 = 0x30
 
 bad_entry_data = 'N/A'
 g_verbose = False
+g_usebom = False
 output_header  = ["Last Modified", "Last Update", "Path", "File Size", "Exec Flag"]
 
 # Shim Cache format used by Windows 5.2 and 6.0 (Server 2003 through Vista/Server 2008)
@@ -162,9 +164,13 @@ def write_it(rows, outfile=None):
                 print " ".join(["%s"%x for x in row])
         else:
             print "[+] Writing output to %s..."%outfile
-            try:    
-                csv_writer = writer(file(outfile, 'wb'), delimiter=',')
+            try:
+                f = open(outfile, 'wb')
+                if g_usebom:
+                    f.write(codecs.BOM_UTF8)    
+                csv_writer = writer(f, delimiter=',')
                 csv_writer.writerows(rows)
+                f.close()
             except IOError, err:
                 print "[-] Error writing output file: %s" % str(err)
                 return
@@ -827,13 +833,15 @@ def read_zip(zip_name):
 def main():
     
     global g_verbose
+    global g_usebom
     
     parser = argparse.ArgumentParser(description="Parses Application Compatibilty Shim Cache data")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Toggles verbose output")
+    parser.add_argument("-B", "--bom", action="store_true", help="Write UTF8 BOM to CSV for easier Excel 2007+ import")
     
     group = parser.add_argument_group()
-    group.add_argument("-o", "--out", metavar="FILE", help="Writes to CSV data to FILE (default is STDOUT)")
+    group.add_argument("-o", "--out", metavar="FILE", help="Writes CSV data to FILE (default is STDOUT)")
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-l", "--local", action="store_true", help="Reads data from local system")
@@ -847,6 +855,10 @@ def main():
 
     if args.verbose:
         g_verbose = True
+
+    # Enable UTF8 Byte Order Mark (BOM) so Excel imports correctly
+    if args.bom:
+        g_usebom = True
 
     # Pull Shim Cache MIR XML.
     if args.mir:
