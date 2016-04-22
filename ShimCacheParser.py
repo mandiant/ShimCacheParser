@@ -64,6 +64,10 @@ bad_entry_data = 'N/A'
 g_verbose = False
 output_header  = ["Last Modified", "Last Update", "Path", "File Size", "Exec Flag"]
 
+# Date Formats
+DATE_MDY = "%m/%d/%y %H:%M:%S"
+DATE_ISO = "%Y-%m-%d %H:%M:%S"
+
 # Shim Cache format used by Windows 5.2 and 6.0 (Server 2003 through Vista/Server 2008)
 class CacheEntryNt5(object):
     
@@ -310,7 +314,7 @@ def read_win8_entries(bin_data, ver_magic):
 
         last_mod_date = convert_filetime(low_datetime, high_datetime)
         try:
-            last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+            last_mod_date = last_mod_date.strftime(g_timeformat)
         except ValueError:
             last_mod_date = bad_entry_data
 
@@ -353,7 +357,7 @@ def read_win10_entries(bin_data, ver_magic):
 
         last_mod_date = convert_filetime(low_datetime, high_datetime)
         try:
-            last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+            last_mod_date = last_mod_date.strftime(g_timeformat)
         except ValueError:
             last_mod_date = bad_entry_data
 
@@ -399,7 +403,7 @@ def read_nt5_entries(bin_data, entry):
         
             last_mod_date = convert_filetime(entry.dwLowDateTime, entry.dwHighDateTime)
             try:
-                last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+                last_mod_date = last_mod_date.strftime(g_timeformat)
             except ValueError:
                 last_mod_date = bad_entry_data
             path = bin_data[entry.Offset:entry.Offset + entry.wLength].decode('utf-16le', 'replace').encode('utf-8')
@@ -451,7 +455,7 @@ def read_nt6_entries(bin_data, entry):
             last_mod_date = convert_filetime(entry.dwLowDateTime,
                                              entry.dwHighDateTime)
             try:
-                last_mod_date = last_mod_date.strftime("%m/%d/%y %H:%M:%S")
+                last_mod_date = last_mod_date.strftime(g_timeformat)
             except ValueError:
                 last_mod_date = 'N/A'
             path = (bin_data[entry.Offset:entry.Offset +
@@ -507,7 +511,7 @@ def read_winxp_entries(bin_data):
             last_mod_time = struct.unpack('<2L', bin_data[entry_data:entry_data+8])
             try:
                 last_mod_time = convert_filetime(last_mod_time[0],
-                                                 last_mod_time[1]).strftime("%m/%d/%y %H:%M:%S")
+                                                 last_mod_time[1]).strftime(g_timeformat)
             except ValueError:
                 last_mod_time = 'N/A'
                 
@@ -520,7 +524,7 @@ def read_winxp_entries(bin_data):
             exec_time = struct.unpack('<2L', bin_data[entry_data + 16:entry_data + 24])
             try:
                 exec_time = convert_filetime(exec_time[0],
-                                             exec_time[1]).strftime("%m/%d/%y %H:%M:%S")
+                                             exec_time[1]).strftime(g_timeformat)
             except ValueError:
                 exec_time = bad_entry_data
                 
@@ -827,10 +831,13 @@ def read_zip(zip_name):
 def main():
     
     global g_verbose
+    global g_timeformat
     
     parser = argparse.ArgumentParser(description="Parses Application Compatibilty Shim Cache data")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Toggles verbose output")
+    parser.add_argument("-t","--isotime", action="store_const", dest="timeformat", const=DATE_ISO, default=DATE_DMY,
+        help="Use YYYY-MM-DD ISO format instead of MM/DD/YY default")
     
     group = parser.add_argument_group()
     group.add_argument("-o", "--out", metavar="FILE", help="Writes to CSV data to FILE (default is STDOUT)")
@@ -847,6 +854,9 @@ def main():
 
     if args.verbose:
         g_verbose = True
+
+    # Set date/time format
+    g_timeformat = args.timeformat
 
     # Pull Shim Cache MIR XML.
     if args.mir:
