@@ -834,7 +834,7 @@ def read_zip(zip_name):
         return None
 
 # Do the work.
-def main():
+def main(argv=[]):
 
     global g_verbose
     global g_timeformat
@@ -858,7 +858,7 @@ def main():
     group.add_argument("-i", "--hive", metavar="HIVE", help="Reads data from a registry reg HIVE")
     group.add_argument("-r", "--reg", metavar="REG", help="Reads data from a .reg registry export file")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     if args.verbose:
         g_verbose = True
@@ -940,5 +940,5 @@ def main():
             write_it(entries, args.out)
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
 
