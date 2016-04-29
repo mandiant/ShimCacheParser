@@ -69,6 +69,7 @@ output_header  = ["Last Modified", "Last Update", "Path", "File Size", "Exec Fla
 # Date Formats
 DATE_MDY = "%m/%d/%y %H:%M:%S"
 DATE_ISO = "%Y-%m-%d %H:%M:%S"
+g_timeformat = DATE_ISO
 
 # Shim Cache format used by Windows 5.2 and 6.0 (Server 2003 through Vista/Server 2008)
 class CacheEntryNt5(object):
