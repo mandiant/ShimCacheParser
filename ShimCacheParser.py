@@ -393,7 +393,7 @@ def read_nt5_entries(bin_data, entry):
         # On Windows Server 2008/Vista, the filesize is swapped out of this
         # structure with two 4-byte flags. Check to see if any of the values in
         # "dwFileSizeLow" are larger than 2-bits. This indicates the entry contained file sizes.
-        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries * entry_size),
+        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries * entry_size) + CACHE_HEADER_SIZE_NT5_2,
                              entry_size):
 
             entry.update(bin_data[offset:offset+entry_size])
@@ -403,7 +403,7 @@ def read_nt5_entries(bin_data, entry):
                 break
 
         # Now grab all the data in the value.
-        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries  * entry_size),
+        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries  * entry_size) + CACHE_HEADER_SIZE_NT5_2,
                              entry_size):
 
             entry.update(bin_data[offset:offset+entry_size])
@@ -455,7 +455,7 @@ def read_nt6_entries(bin_data, entry):
 
         # Walk each entry in the data structure.
         for offset in xrange(CACHE_HEADER_SIZE_NT6_1,
-                             num_entries*entry_size,
+                             num_entries*entry_size + CACHE_HEADER_SIZE_NT6_1,
                              entry_size):
 
             entry.update(bin_data[offset:offset+entry_size])
