@@ -498,7 +498,7 @@ def read_winxp_entries(bin_data):
             return None
 
         for offset in xrange(WINXP_HEADER_SIZE32,
-                             (num_entries*WINXP_ENTRY_SIZE32), WINXP_ENTRY_SIZE32):
+                             (num_entries*WINXP_ENTRY_SIZE32) + WINXP_HEADER_SIZE32, WINXP_ENTRY_SIZE32):
 
             # No size values are included in these entries, so search for utf-16 terminator.
             path_len = bin_data[offset:offset+(MAX_PATH + 8)].find("\x00\x00")
