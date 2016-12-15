@@ -826,7 +826,7 @@ def read_zip(zip_name):
                 print "[-] Error opening file: %s in MIR archive: %s" % (item, err)
                 continue
         # Add the final header.
-        final_list.insert(0, ("Hostname", "Last Modified", "Last Execution",
+        final_list.insert(0, ("Hostname", "Last Modified", "Last Update",
                               "Path", "File Size", "File Executed", "Key Path"))
         return final_list
 
