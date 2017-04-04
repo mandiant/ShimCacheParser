@@ -562,28 +562,55 @@ def read_from_hive(hive):
         print "[-] Error parsing %s: %s" % (hive, err)
         sys.exit(1)
 
-    root = reg.root().subkeys()
-    for key in root:
-        # Check each ControlSet.
-        try:
-            if 'controlset' in key.name().lower():
-                session_man_key = reg.open('%s\\Control\\Session Manager' % key.name())
-                for subkey in session_man_key.subkeys():
-                    # Read the Shim Cache structure.
-                    if ('appcompatibility' in subkey.name().lower() or
-                        'appcompatcache' in subkey.name().lower()):
-                        bin_data = str(subkey['AppCompatCache'].value())
-                        tmp_list = read_cache(bin_data)
+    # Partial hive
+    partial_hive_path = ('Session Manager', 'AppCompatCache', 'AppCompatibility')
+    if reg.root().path() in partial_hive_path:
+        if reg.root().path() == 'Session Manager':
+            # Only Session Manager
+            # For example extracted with: reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" "c:\temp\SessionManager.hve" /y
+            print "[+] Partial hive -- 'Session Manager'"
+            if reg.root().find_key('AppCompatCache').values():
+                print "[+] Partial hive -- 'AppCompatCache' or 'AppCompatibility'"
+                keys = reg.root().find_key('AppCompatCache').values()
+        else:
+            # Partial hive AppCompatCache or AppCompatibility
+            # reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatCache" "c:\temp\appCompatCache.hve" /y
+            # reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility" "c:\temp\AppCompatibility.hve" /y
+            keys = reg.root().values()
+        for k in keys:
+            bin_data = str(k.value())
+            tmp_list = read_cache(bin_data)
 
-                        if tmp_list:
-                            for row in tmp_list:
-                                if g_verbose:
-                                    row.append(subkey.path())
-                                if row not in out_list:
-                                    out_list.append(row)
+            if tmp_list:
+                for row in tmp_list:
+                    if g_verbose:
+                        row.append(k.name())
+                    if row not in out_list:
+                        out_list.append(row)
+    else:
+        # Complete hive
+        root = reg.root().subkeys()
+        for key in root:
+            # Check each ControlSet.
+            try:
+                if 'controlset' in key.name().lower():
+                    session_man_key = reg.open('%s\\Control\\Session Manager' % key.name())
+                    for subkey in session_man_key.subkeys():
+                        # Read the Shim Cache structure.
+                        if ('appcompatibility' in subkey.name().lower() or
+                            'appcompatcache' in subkey.name().lower()):
+                            bin_data = str(subkey['AppCompatCache'].value())
+                            tmp_list = read_cache(bin_data)
 
-        except Registry.RegistryKeyNotFoundException:
-            continue
+                            if tmp_list:
+                                for row in tmp_list:
+                                    if g_verbose:
+                                        row.append(subkey.path())
+                                    if row not in out_list:
+                                        out_list.append(row)
+
+            except Registry.RegistryKeyNotFoundException:
+                continue
 
     if len(out_list) == 0:
         return None
