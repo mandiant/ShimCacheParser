@@ -822,7 +822,7 @@ def read_zip(zip_name):
         print "[+] Processing %d registry acquisitions..." % len(zip_contents)
         for item in zip_contents:
             try:
-                if '_w32registry.xml' not in item:
+                if 'w32registry' not in item:
                     continue
                 filename = item.split('/')
                 if len(filename) > 0:
@@ -846,15 +846,13 @@ def read_zip(zip_name):
                 else:
                     for li in out_list:
                         if "Last Modified" not in li[0]:
-                            li.insert(0, hostname)
                             final_list.append(li)
 
             except IOError, err:
                 print "[-] Error opening file: %s in MIR archive: %s" % (item, err)
                 continue
         # Add the final header.
-        final_list.insert(0, ("Hostname", "Last Modified", "Last Update",
-                              "Path", "File Size", "File Executed", "Key Path"))
+        final_list.insert(0, ("Last Modified", "Last Update", "Path", "File Size", "Exec Flag"))
         return final_list
 
     except (IOError, zipfile.BadZipfile, struct.error), err:
@@ -969,4 +967,3 @@ def main(argv=[]):
 
 if __name__ == '__main__':
     main(sys.argv)
-
