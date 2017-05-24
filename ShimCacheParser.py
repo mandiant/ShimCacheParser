@@ -811,7 +811,7 @@ def read_zip(zip_name):
     tmp_list = []
     final_list = []
     out_list = []
-    hostname = ""
+    hostname = "N/A"
 
     try:
         # Open the zip archive.
@@ -846,13 +846,14 @@ def read_zip(zip_name):
                 else:
                     for li in out_list:
                         if "Last Modified" not in li[0]:
+                            li.insert(0, hostname)
                             final_list.append(li)
 
             except IOError, err:
                 print "[-] Error opening file: %s in MIR archive: %s" % (item, err)
                 continue
         # Add the final header.
-        final_list.insert(0, ("Last Modified", "Last Update", "Path", "File Size", "Exec Flag"))
+        final_list.insert(0, ("Hostname", "Last Modified", "Last Update", "Path", "File Size", "Exec Flag"))
         return final_list
 
     except (IOError, zipfile.BadZipfile, struct.error), err:
