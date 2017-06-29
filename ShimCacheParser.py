@@ -57,6 +57,7 @@ WIN81_MAGIC = '10ts'
 
 # Values used by Windows 10
 WIN10_STATS_SIZE = 0x30
+WIN10_CREATORS_STATS_SIZE = 0x34
 WIN10_MAGIC = '10ts'
 CACHE_HEADER_SIZE_NT6_4 = 0x30
 CACHE_MAGIC_NT6_4 = 0x30
@@ -267,6 +268,12 @@ def read_cache(cachebin, quiet=False):
                 print "[+] Found Windows 10 Apphelp Cache data..."
             return read_win10_entries(cachebin, WIN10_MAGIC)
 
+        # Windows 10 Creators Update will use a different STATS_SIZE, account for it
+        elif len(cachebin) > WIN10_CREATORS_STATS_SIZE and cachebin[WIN10_CREATORS_STATS_SIZE:WIN10_CREATORS_STATS_SIZE+4] == WIN10_MAGIC:
+            if not quiet:
+                print "[+] Found Windows 10 Creators Update Apphelp Cache data..."
+            return read_win10_entries(cachebin, WIN10_MAGIC, creators_update=True)
+
         else:
             print "[-] Got an unrecognized magic value of 0x%x... bailing" % magic
             return None
@@ -331,13 +338,17 @@ def read_win8_entries(bin_data, ver_magic):
     return entry_list
 
 # Read Windows 10 Apphelp Cache entry format
-def read_win10_entries(bin_data, ver_magic):
+def read_win10_entries(bin_data, ver_magic, creators_update=False):
+
     offset = 0
     entry_meta_len = 12
     entry_list = []
 
     # Skip past the stats in the header
-    cache_data = bin_data[WIN10_STATS_SIZE:]
+    if creators_update:
+        cache_data = bin_data[WIN10_CREATORS_STATS_SIZE:]
+    else:
+        cache_data = bin_data[WIN10_STATS_SIZE:]
 
     data = sio.StringIO(cache_data)
     while data.tell() < len(cache_data):
