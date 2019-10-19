@@ -299,6 +299,10 @@ def read_win8_entries(bin_data, ver_magic):
         # Note: the crc32 hash is of the cache entry data
         magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
 
+        # Abort on empty magic value
+        if magic == b'\x00\x00\x00\x00':
+            break
+
         # Check the magic tag
         if magic != ver_magic:
             raise Exception("Invalid version magic tag found: 0x%x" % struct.unpack("<L", magic)[0])
@@ -357,6 +361,10 @@ def read_win10_entries(bin_data, ver_magic, creators_update=False):
         # Read in the entry metadata
         # Note: the crc32 hash is of the cache entry data
         magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
+
+        # Abort on empty magic value
+        if magic == b'\x00\x00\x00\x00':
+            break
 
         # Check the magic tag
         if magic != ver_magic:
