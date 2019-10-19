@@ -792,9 +792,12 @@ def get_local_data():
     global g_verbose
 
     try:
-        import _winreg as reg
+        if sys.version_info >= (3,0,0):
+            import winreg as reg
+        else:
+            import _winreg as reg
     except ImportError:
-        print("[-] \'winreg.py\' not found... Is this a Windows system?")
+        print("[-] 'winreg' not found... Is this a Windows system?")
         sys.exit(1)
 
     hReg = reg.ConnectRegistry(None, reg.HKEY_LOCAL_MACHINE)
