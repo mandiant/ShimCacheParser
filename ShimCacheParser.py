@@ -614,7 +614,7 @@ def read_from_hive(hive):
             # reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility" "c:\temp\AppCompatibility.hve" /y
             keys = reg.root().values()
         for k in keys:
-            bin_data = str(k.value())
+            bin_data = k.value()
             tmp_list = read_cache(bin_data)
 
             if tmp_list:
@@ -635,7 +635,7 @@ def read_from_hive(hive):
                         # Read the Shim Cache structure.
                         if ('appcompatibility' in subkey.name().lower() or
                             'appcompatcache' in subkey.name().lower()):
-                            bin_data = str(subkey['AppCompatCache'].value())
+                            bin_data = subkey['AppCompatCache'].value()
                             tmp_list = read_cache(bin_data)
 
                             if tmp_list:
