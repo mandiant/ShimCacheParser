@@ -163,6 +163,15 @@ def unique_list(li):
             ret_list.append(entry)
     return ret_list
 
+def open_csv(filename, encoding):
+    if sys.version_info >= (3,0,0):
+        f = open(filename, 'w', newline='', encoding=encoding)
+    else:
+        f = open(filename, 'wb')
+        if encoding == 'utf-8-sig':
+            f.write(codecs.BOM_UTF8)
+    return f
+
 # Write the Log.
 def write_it(rows, outfile=None):
 
@@ -178,12 +187,12 @@ def write_it(rows, outfile=None):
         else:
             print("[+] Writing output to %s..." % outfile)
             try:
-                f = open(outfile, 'wb')
+                encoding = 'utf8'
                 if g_usebom:
-                    f.write(codecs.BOM_UTF8)
-                csv_writer = writer(f, delimiter=',')
-                csv_writer.writerows(rows)
-                f.close()
+                    encoding = 'utf-8-sig'
+                with open_csv(outfile, encoding) as f:#, encoding=encoding) as f:
+                    csv_writer = writer(f, delimiter=',')
+                    csv_writer.writerows(rows)
             except IOError as err:
                 print("[-] Error writing output file: %s" % str(err))
                 return
