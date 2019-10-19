@@ -12,7 +12,7 @@ The script will find these registry paths, automatically determine their format,
 
 Usage
 ====================
-ShimCacheParser.py requires python 2.x (2.6 or later) or python 3.x (3.5 or later) which can be obtained from http://www.python.org/download/. Parsing of exported registry hives requires Willi Ballenthin's python-registry library which is currently included in this project or can be downloaded here: https://github.com/williballenthin/python-registry.
+ShimCacheParser.py requires python 2.x (2.6 or later) or python 3.x (3.5 or later) which can be obtained from http://www.python.org/download/. Parsing of exported registry hives requires Willi Ballenthin's python-registry library which can be installed via 'pip install python-registry' or downloaded here: https://github.com/williballenthin/python-registry.
 
 Several types of inputs are currently supported:
     -Extracted Registry Hives (-i, --hive)

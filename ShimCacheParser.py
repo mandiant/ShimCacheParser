@@ -588,7 +588,8 @@ def read_from_hive(hive):
     try:
         from Registry import Registry
     except ImportError:
-        print("[-] Hive parsing requires Registry.py... Didn\'t find it, bailing...")
+        print("[-] Hive parsing requires python-registry... Didn't find it, bailing...")
+        print("[-] Install via 'pip install python-registry'")
         sys.exit(2)
 
     try:
