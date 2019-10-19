@@ -8,18 +8,18 @@ ShimCacheParser is a proof-of-concept tool for reading the Application Compatibi
 
 More information about this cache and how it's implemented can be found here: https://www.fireeye.com/content/dam/fireeye-www/services/freeware/shimcache-whitepaper.pdf
 
-The script will find these registry paths, automatically determine their format, and return the data in an optional CSV format. During testing it was discovered that on Windows Vista and later, files may be added to this cache if they were browsed to by explorer.exe and never actually executed.  When these same files were executed, the 2nd least significant bit in the flags field was set by the CSRSS process while checking SXS information. During testing it was possible to identify if processes were executed based on this flag being set. This flag's true purpose is currently unknown and is still being testing for consistency, so it should not be currently used to definitively conclude that a file may or may not have executed. 
+The script will find these registry paths, automatically determine their format, and return the data in an optional CSV format. During testing it was discovered that on Windows Vista and later, files may be added to this cache if they were browsed to by explorer.exe and never actually executed.  When these same files were executed, the 2nd least significant bit in the flags field was set by the CSRSS process while checking SXS information. During testing it was possible to identify if processes were executed based on this flag being set. This flag's true purpose is currently unknown and is still being testing for consistency, so it should not be currently used to definitively conclude that a file may or may not have executed.
 
 Usage
 ====================
-ShimCacheParser.py requires python 2.x (2.6 or later) which can be obtained from http://www.python.org/download/. Parsing of exported registry hives requires Willi Ballenthin's python-registry library which is currently included in this project or can be downloaded here: https://github.com/williballenthin/python-registry. 
+ShimCacheParser.py requires python 2.x (2.6 or later) or python 3.x (3.5 or later) which can be obtained from http://www.python.org/download/. Parsing of exported registry hives requires Willi Ballenthin's python-registry library which is currently included in this project or can be downloaded here: https://github.com/williballenthin/python-registry.
 
 Several types of inputs are currently supported:
     -Extracted Registry Hives (-i, --hive)
-    -Exported .reg registry files (-r, --reg) 
+    -Exported .reg registry files (-r, --reg)
     -MIR XML  (-m, --mir)
     -Mass MIR registry acquisitions ZIP archives (-z, --zip)
     -The current Windows system (-l, --local)
     -Exported AppComatCache data from binary file (-b, --bin)
-    
-The output CSV file is set with the (-o, --output) argument. If no output file is specified, the data will be printed to STDOUT.  ShimCacheParser will search each ControlSet and will only return unique entries by default. If you want to display duplicates as well as the full registry path where the data was taken use the verbose (-v, --verbose) option. 
+
+The output CSV file is set with the (-o, --output) argument. If no output file is specified, the data will be printed to STDOUT.  ShimCacheParser will search each ControlSet and will only return unique entries by default. If you want to display duplicates as well as the full registry path where the data was taken use the verbose (-v, --verbose) option.
