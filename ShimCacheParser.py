@@ -18,6 +18,12 @@
 #
 # Identifies and parses Application Compatibility Shim Cache entries for forensic data.
 
+from __future__ import print_function
+try:
+    from builtins import range
+except ImportError:
+    range = xrange
+
 import sys
 import struct
 import zipfile
@@ -25,7 +31,7 @@ import argparse
 import binascii
 import datetime
 import codecs
-import cStringIO as sio
+from io import BytesIO
 import xml.etree.cElementTree as et
 from os import path
 from csv import writer
@@ -51,15 +57,15 @@ MAX_PATH = 520
 
 # Values used by Windows 8
 WIN8_STATS_SIZE = 0x80
-WIN8_MAGIC = '00ts'
+WIN8_MAGIC = b'00ts'
 
 # Magic value used by Windows 8.1
-WIN81_MAGIC = '10ts'
+WIN81_MAGIC = b'10ts'
 
 # Values used by Windows 10
 WIN10_STATS_SIZE = 0x30
 WIN10_CREATORS_STATS_SIZE = 0x34
-WIN10_MAGIC = '10ts'
+WIN10_MAGIC = b'10ts'
 CACHE_HEADER_SIZE_NT6_4 = 0x30
 CACHE_MAGIC_NT6_4 = 0x30
 
@@ -145,7 +151,7 @@ def convert_filetime(dwLowDateTime, dwHighDateTime):
         temp_time <<= 32
         temp_time |= dwLowDateTime
         return date + datetime.timedelta(microseconds=temp_time/10)
-    except OverflowError, err:
+    except OverflowError as err:
         return None
 
 # Return a unique list while preserving ordering.
@@ -157,33 +163,42 @@ def unique_list(li):
             ret_list.append(entry)
     return ret_list
 
+def open_csv(filename, encoding):
+    if sys.version_info >= (3,0,0):
+        f = open(filename, 'w', newline='', encoding=encoding)
+    else:
+        f = open(filename, 'wb')
+        if encoding == 'utf-8-sig':
+            f.write(codecs.BOM_UTF8)
+    return f
+
 # Write the Log.
 def write_it(rows, outfile=None):
 
     try:
 
         if not rows:
-            print "[-] No data to write..."
+            print("[-] No data to write...")
             return
 
         if not outfile:
             for row in rows:
-                print " ".join(["%s"%x for x in row])
+                print(" ".join(["%s"%x for x in row]))
         else:
-            print "[+] Writing output to %s..."%outfile
+            print("[+] Writing output to %s..." % outfile)
             try:
-                f = open(outfile, 'wb')
+                encoding = 'utf8'
                 if g_usebom:
-                    f.write(codecs.BOM_UTF8)
-                csv_writer = writer(f, delimiter=',')
-                csv_writer.writerows(rows)
-                f.close()
-            except IOError, err:
-                print "[-] Error writing output file: %s" % str(err)
+                    encoding = 'utf-8-sig'
+                with open_csv(outfile, encoding) as f:#, encoding=encoding) as f:
+                    csv_writer = writer(f, delimiter=',')
+                    csv_writer.writerows(rows)
+            except IOError as err:
+                print("[-] Error writing output file: %s" % str(err))
                 return
 
-    except UnicodeEncodeError, err:
-        print "[-] Error writing output file: %s" % str(err)
+    except UnicodeEncodeError as err:
+        print("[-] Error writing output file: %s" % str(err))
         return
 
 # Read the Shim Cache format, return a list of last modified dates/paths.
@@ -209,14 +224,14 @@ def read_cache(cachebin, quiet=False):
             if (test_max_size-test_size == 2 and
                 struct.unpack("<L", cachebin[12:16])[0] ) == 0:
                 if not quiet:
-                    print "[+] Found 64bit Windows 2k3/Vista/2k8 Shim Cache data..."
+                    print("[+] Found 64bit Windows 2k3/Vista/2k8 Shim Cache data...")
                 entry = CacheEntryNt5(False)
                 return read_nt5_entries(cachebin, entry)
 
             # Otherwise it's 32-bit data.
             else:
                 if not quiet:
-                    print "[+] Found 32bit Windows 2k3/Vista/2k8 Shim Cache data..."
+                    print("[+] Found 32bit Windows 2k3/Vista/2k8 Shim Cache data...")
                 entry = CacheEntryNt5(True)
                 return read_nt5_entries(cachebin, entry)
 
@@ -236,51 +251,51 @@ def read_cache(cachebin, quiet=False):
                 struct.unpack("<L", cachebin[CACHE_HEADER_SIZE_NT6_1+4:
                 CACHE_HEADER_SIZE_NT6_1 + 8])[0] ) == 0:
                 if not quiet:
-                    print "[+] Found 64bit Windows 7/2k8-R2 Shim Cache data..."
+                    print("[+] Found 64bit Windows 7/2k8-R2 Shim Cache data...")
                 entry = CacheEntryNt6(False)
                 return read_nt6_entries(cachebin, entry)
             else:
                 if not quiet:
-                    print "[+] Found 32bit Windows 7/2k8-R2 Shim Cache data..."
+                    print("[+] Found 32bit Windows 7/2k8-R2 Shim Cache data...")
                 entry = CacheEntryNt6(True)
                 return read_nt6_entries(cachebin, entry)
 
         # This is WinXP cache data
         elif magic == WINXP_MAGIC32:
             if not quiet:
-                print "[+] Found 32bit Windows XP Shim Cache data..."
+                print("[+] Found 32bit Windows XP Shim Cache data...")
             return read_winxp_entries(cachebin)
 
         # Check the data set to see if it matches the Windows 8 format.
         elif len(cachebin) > WIN8_STATS_SIZE and cachebin[WIN8_STATS_SIZE:WIN8_STATS_SIZE+4] == WIN8_MAGIC:
             if not quiet:
-                print "[+] Found Windows 8/2k12 Apphelp Cache data..."
+                print("[+] Found Windows 8/2k12 Apphelp Cache data...")
             return read_win8_entries(cachebin, WIN8_MAGIC)
 
         # Windows 8.1 will use a different magic dword, check for it
         elif len(cachebin) > WIN8_STATS_SIZE and cachebin[WIN8_STATS_SIZE:WIN8_STATS_SIZE+4] == WIN81_MAGIC:
             if not quiet:
-                print "[+] Found Windows 8.1 Apphelp Cache data..."
+                print("[+] Found Windows 8.1 Apphelp Cache data...")
             return read_win8_entries(cachebin, WIN81_MAGIC)
 
         # Windows 10 will use a different magic dword, check for it
         elif len(cachebin) > WIN10_STATS_SIZE and cachebin[WIN10_STATS_SIZE:WIN10_STATS_SIZE+4] == WIN10_MAGIC:
             if not quiet:
-                print "[+] Found Windows 10 Apphelp Cache data..."
+                print("[+] Found Windows 10 Apphelp Cache data...")
             return read_win10_entries(cachebin, WIN10_MAGIC)
 
         # Windows 10 Creators Update will use a different STATS_SIZE, account for it
         elif len(cachebin) > WIN10_CREATORS_STATS_SIZE and cachebin[WIN10_CREATORS_STATS_SIZE:WIN10_CREATORS_STATS_SIZE+4] == WIN10_MAGIC:
             if not quiet:
-                print "[+] Found Windows 10 Creators Update Apphelp Cache data..."
+                print("[+] Found Windows 10 Creators Update Apphelp Cache data...")
             return read_win10_entries(cachebin, WIN10_MAGIC, creators_update=True)
 
         else:
-            print "[-] Got an unrecognized magic value of 0x%x... bailing" % magic
+            print("[-] Got an unrecognized magic value of 0x%x... bailing" % magic)
             return None
 
-    except (RuntimeError, TypeError, NameError), err:
-        print "[-] Error reading Shim Cache data: %s" % err
+    except (RuntimeError, TypeError, NameError) as err:
+        print("[-] Error reading Shim Cache data: %s" % err)
         return None
 
 # Read Windows 8/2k12/8.1 Apphelp Cache entry formats.
@@ -292,25 +307,29 @@ def read_win8_entries(bin_data, ver_magic):
     # Skip past the stats in the header
     cache_data = bin_data[WIN8_STATS_SIZE:]
 
-    data = sio.StringIO(cache_data)
+    data = BytesIO(cache_data)
     while data.tell() < len(cache_data):
         header = data.read(entry_meta_len)
         # Read in the entry metadata
         # Note: the crc32 hash is of the cache entry data
         magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
 
+        # Abort on empty magic value
+        if magic == b'\x00\x00\x00\x00':
+            break
+
         # Check the magic tag
         if magic != ver_magic:
             raise Exception("Invalid version magic tag found: 0x%x" % struct.unpack("<L", magic)[0])
 
-        entry_data = sio.StringIO(data.read(entry_len))
+        entry_data = BytesIO(data.read(entry_len))
 
         # Read the path length
         path_len = struct.unpack('<H', entry_data.read(2))[0]
         if path_len == 0:
             path = 'None'
         else:
-            path = entry_data.read(path_len).decode('utf-16le', 'replace').encode('utf-8')
+            path = entry_data.read(path_len).decode('utf-16le', 'replace')
 
         # Check for package data
         package_len = struct.unpack('<H', entry_data.read(2))[0]
@@ -351,25 +370,29 @@ def read_win10_entries(bin_data, ver_magic, creators_update=False):
     else:
         cache_data = bin_data[WIN10_STATS_SIZE:]
 
-    data = sio.StringIO(cache_data)
+    data = BytesIO(cache_data)
     while data.tell() < len(cache_data):
         header = data.read(entry_meta_len)
         # Read in the entry metadata
         # Note: the crc32 hash is of the cache entry data
         magic, crc32_hash, entry_len = struct.unpack('<4sLL', header)
 
+        # Abort on empty magic value
+        if magic == b'\x00\x00\x00\x00':
+            break
+
         # Check the magic tag
         if magic != ver_magic:
             raise Exception("Invalid version magic tag found: 0x%x" % struct.unpack("<L", magic)[0])
 
-        entry_data = sio.StringIO(data.read(entry_len))
+        entry_data = BytesIO(data.read(entry_len))
 
         # Read the path length
         path_len = struct.unpack('<H', entry_data.read(2))[0]
         if path_len == 0:
             path = 'None'
         else:
-            path = entry_data.read(path_len).decode('utf-16le', 'replace').encode('utf-8')
+            path = entry_data.read(path_len).decode('utf-16le', 'replace')
 
         # Read the remaining entry data
         low_datetime, high_datetime = struct.unpack('<LL', entry_data.read(8))
@@ -405,7 +428,7 @@ def read_nt5_entries(bin_data, entry):
         # On Windows Server 2008/Vista, the filesize is swapped out of this
         # structure with two 4-byte flags. Check to see if any of the values in
         # "dwFileSizeLow" are larger than 2-bits. This indicates the entry contained file sizes.
-        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries * entry_size) + CACHE_HEADER_SIZE_NT5_2,
+        for offset in range(CACHE_HEADER_SIZE_NT5_2, (num_entries * entry_size) + CACHE_HEADER_SIZE_NT5_2,
                              entry_size):
 
             entry.update(bin_data[offset:offset+entry_size])
@@ -415,7 +438,7 @@ def read_nt5_entries(bin_data, entry):
                 break
 
         # Now grab all the data in the value.
-        for offset in xrange(CACHE_HEADER_SIZE_NT5_2, (num_entries  * entry_size) + CACHE_HEADER_SIZE_NT5_2,
+        for offset in range(CACHE_HEADER_SIZE_NT5_2, (num_entries  * entry_size) + CACHE_HEADER_SIZE_NT5_2,
                              entry_size):
 
             entry.update(bin_data[offset:offset+entry_size])
@@ -425,7 +448,7 @@ def read_nt5_entries(bin_data, entry):
                 last_mod_date = last_mod_date.strftime(g_timeformat)
             except ValueError:
                 last_mod_date = bad_entry_data
-            path = bin_data[entry.Offset:entry.Offset + entry.wLength].decode('utf-16le', 'replace').encode('utf-8')
+            path = bin_data[entry.Offset:entry.Offset + entry.wLength].decode('utf-16le', 'replace')
             path = path.replace("\\??\\", "")
 
             # It contains file size data.
@@ -448,8 +471,8 @@ def read_nt5_entries(bin_data, entry):
 
         return entry_list
 
-    except (RuntimeError, ValueError, NameError), err:
-        print "[-] Error reading Shim Cache data: %s..." % err
+    except (RuntimeError, ValueError, NameError) as err:
+        print("[-] Error reading Shim Cache data: %s..." % err)
         return None
 
 # Read the Shim Cache Windows 7/2k8-R2 entry format,
@@ -466,7 +489,7 @@ def read_nt6_entries(bin_data, entry):
             return None
 
         # Walk each entry in the data structure.
-        for offset in xrange(CACHE_HEADER_SIZE_NT6_1,
+        for offset in range(CACHE_HEADER_SIZE_NT6_1,
                              num_entries*entry_size + CACHE_HEADER_SIZE_NT6_1,
                              entry_size):
 
@@ -477,8 +500,8 @@ def read_nt6_entries(bin_data, entry):
                 last_mod_date = last_mod_date.strftime(g_timeformat)
             except ValueError:
                 last_mod_date = 'N/A'
-            path = (bin_data[entry.Offset:entry.Offset +
-                             entry.wLength].decode('utf-16le','replace').encode('utf-8'))
+            path = bin_data[entry.Offset:entry.Offset +
+                             entry.wLength].decode('utf-16le','replace')
             path = path.replace("\\??\\", "")
 
             # Test to see if the file may have been executed.
@@ -493,8 +516,8 @@ def read_nt6_entries(bin_data, entry):
                 entry_list.append(hit)
         return entry_list
 
-    except (RuntimeError, ValueError, NameError), err:
-        print '[-] Error reading Shim Cache data: %s...' % err
+    except (RuntimeError, ValueError, NameError) as err:
+        print('[-] Error reading Shim Cache data: %s...' % err)
         return None
 
 # Read the WinXP Shim Cache data. Some entries can be missing data but still
@@ -509,16 +532,16 @@ def read_winxp_entries(bin_data):
         if num_entries == 0:
             return None
 
-        for offset in xrange(WINXP_HEADER_SIZE32,
+        for offset in range(WINXP_HEADER_SIZE32,
                              (num_entries*WINXP_ENTRY_SIZE32) + WINXP_HEADER_SIZE32, WINXP_ENTRY_SIZE32):
 
             # No size values are included in these entries, so search for utf-16 terminator.
-            path_len = bin_data[offset:offset+(MAX_PATH + 8)].find("\x00\x00")
+            path_len = bin_data[offset:offset+(MAX_PATH + 8)].find(b"\x00\x00")
 
             # if path is corrupt, procede to next entry.
             if path_len == 0:
                 continue
-            path =  bin_data[offset:offset+path_len + 1].decode('utf-16le').encode('utf-8')
+            path =  bin_data[offset:offset+path_len + 1].decode('utf-16le')
 
             # Clean up the pathname.
             path = path.replace('\\??\\', '')
@@ -552,8 +575,8 @@ def read_winxp_entries(bin_data):
                 entry_list.append(hit)
         return entry_list
 
-    except (RuntimeError, ValueError, NameError), err:
-        print "[-] Error reading Shim Cache data %s" % err
+    except (RuntimeError, ValueError, NameError) as err:
+        print("[-] Error reading Shim Cache data %s" % err)
         return None
 
 # Get Shim Cache data from a registry hive.
@@ -565,13 +588,14 @@ def read_from_hive(hive):
     try:
         from Registry import Registry
     except ImportError:
-        print "[-] Hive parsing requires Registry.py... Didn\'t find it, bailing..."
+        print("[-] Hive parsing requires python-registry... Didn't find it, bailing...")
+        print("[-] Install via 'pip install python-registry'")
         sys.exit(2)
 
     try:
         reg = Registry.Registry(hive)
-    except Registry.RegistryParse.ParseException, err:
-        print "[-] Error parsing %s: %s" % (hive, err)
+    except Registry.RegistryParse.ParseException as err:
+        print("[-] Error parsing %s: %s" % (hive, err))
         sys.exit(1)
 
     # Partial hive
@@ -580,9 +604,9 @@ def read_from_hive(hive):
         if reg.root().path() == 'Session Manager':
             # Only Session Manager
             # For example extracted with: reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" "c:\temp\SessionManager.hve" /y
-            print "[+] Partial hive -- 'Session Manager'"
+            print("[+] Partial hive -- 'Session Manager'")
             if reg.root().find_key('AppCompatCache').values():
-                print "[+] Partial hive -- 'AppCompatCache' or 'AppCompatibility'"
+                print("[+] Partial hive -- 'AppCompatCache' or 'AppCompatibility'")
                 keys = reg.root().find_key('AppCompatCache').values()
         else:
             # Partial hive AppCompatCache or AppCompatibility
@@ -590,7 +614,7 @@ def read_from_hive(hive):
             # reg save "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\AppCompatibility" "c:\temp\AppCompatibility.hve" /y
             keys = reg.root().values()
         for k in keys:
-            bin_data = str(k.value())
+            bin_data = k.value()
             tmp_list = read_cache(bin_data)
 
             if tmp_list:
@@ -611,7 +635,7 @@ def read_from_hive(hive):
                         # Read the Shim Cache structure.
                         if ('appcompatibility' in subkey.name().lower() or
                             'appcompatcache' in subkey.name().lower()):
-                            bin_data = str(subkey['AppCompatCache'].value())
+                            bin_data = subkey['AppCompatCache'].value()
                             tmp_list = read_cache(bin_data)
 
                             if tmp_list:
@@ -650,8 +674,8 @@ def read_mir(xml_file, quiet=False):
 
             path_name = reg_item.find("Path").text
             if not path_name:
-                print "[-] Error XML missing Path"
-                print et.tostring(reg_item)
+                print("[-] Error XML missing Path")
+                print(et.tostring(reg_item))
                 reg_item.clear()
                 continue
             path_name = path_name.lower()
@@ -671,8 +695,8 @@ def read_mir(xml_file, quiet=False):
                             out_list.append(row)
             reg_item.clear()
 
-    except (AttributeError, TypeError, IOError),  err:
-        print "[-] Error reading MIR XML: %s" % str(err)
+    except (AttributeError, TypeError, IOError) as err:
+        print("[-] Error reading MIR XML: %s" % str(err))
         return None
 
     if len(out_list) == 0:
@@ -707,7 +731,7 @@ def read_from_reg(reg_file, quiet=False):
         pass #.reg file should be UTF-16, if it's not, it might be ANSI, which is not fully supported here.
 
     if not file_contents.startswith('Windows Registry Editor'):
-        print "[-] Unable to properly decode .reg file: %s" % reg_file
+        print("[-] Unable to properly decode .reg file: %s" % reg_file)
         return None
 
     path_name = None
@@ -744,7 +768,7 @@ def read_from_reg(reg_file, quiet=False):
             break
 
     if appcompat_keys <= 0:
-        print "[-] Unable to find value in .reg file: %s" % reg_file
+        print("[-] Unable to find value in .reg file: %s" % reg_file)
         return None
 
     if len(out_list) == 0:
@@ -768,20 +792,23 @@ def get_local_data():
     global g_verbose
 
     try:
-        import _winreg as reg
+        if sys.version_info >= (3,0,0):
+            import winreg as reg
+        else:
+            import _winreg as reg
     except ImportError:
-        print "[-] \'winreg.py\' not found... Is this a Windows system?"
+        print("[-] 'winreg' not found... Is this a Windows system?")
         sys.exit(1)
 
     hReg = reg.ConnectRegistry(None, reg.HKEY_LOCAL_MACHINE)
     hSystem = reg.OpenKey(hReg, r'SYSTEM')
-    for i in xrange(1024):
+    for i in range(1024):
         try:
             control_name = reg.EnumKey(hSystem, i)
             if 'controlset' in control_name.lower():
                 hSessionMan = reg.OpenKey(hReg,
                                           'SYSTEM\\%s\\Control\\Session Manager' % control_name)
-                for i in xrange(1024):
+                for i in range(1024):
                     try:
                         subkey_name = reg.EnumKey(hSessionMan, i)
                         if ('appcompatibility' in subkey_name.lower()
@@ -831,7 +858,7 @@ def read_zip(zip_name):
         for zip_file in archive.infolist():
             zip_contents.append(zip_file.filename)
 
-        print "[+] Processing %d registry acquisitions..." % len(zip_contents)
+        print("[+] Processing %d registry acquisitions..." % len(zip_contents))
         for item in zip_contents:
             try:
                 if '_w32registry.xml' not in item:
@@ -848,8 +875,8 @@ def read_zip(zip_name):
                 # Catch possibly corrupt MIR XML data.
                 try:
                     out_list = read_mir(xml_file, quiet=True)
-                except(struct.error, et.ParseError), err:
-                    print "[-] Error reading XML data from host: %s, data looks corrupt. Continuing..." % hostname
+                except(struct.error, et.ParseError) as err:
+                    print("[-] Error reading XML data from host: %s, data looks corrupt. Continuing..." % hostname)
                     continue
 
                 # Add the hostname to the entry list.
@@ -861,16 +888,16 @@ def read_zip(zip_name):
                             li.insert(0, hostname)
                             final_list.append(li)
 
-            except IOError, err:
-                print "[-] Error opening file: %s in MIR archive: %s" % (item, err)
+            except IOError as err:
+                print("[-] Error opening file: %s in MIR archive: %s" % (item, err))
                 continue
         # Add the final header.
         final_list.insert(0, ("Hostname", "Last Modified", "Last Update",
                               "Path", "File Size", "File Executed", "Key Path"))
         return final_list
 
-    except (IOError, zipfile.BadZipfile, struct.error), err:
-        print "[-] Error reading zip archive: %s" % zip_name
+    except (IOError, zipfile.BadZipfile, struct.error) as err:
+        print("[-] Error reading zip archive: %s" % zip_name)
         return None
 
 # Do the work.
@@ -912,70 +939,70 @@ def main(argv=[]):
 
     # Pull Shim Cache MIR XML.
     if args.mir:
-        print "[+] Reading MIR output XML file: %s..." % args.mir
+        print("[+] Reading MIR output XML file: %s..." % args.mir)
         try:
-            with file(args.mir, 'rb') as xml_data:
+            with open(args.mir, 'rb') as xml_data:
                 entries = read_mir(xml_data)
                 if not entries:
-                    print "[-] No Shim Cache entries found..."
+                    print("[-] No Shim Cache entries found...")
                     return
                 else:
                     write_it(entries, args.out)
-        except IOError, err:
-            print "[-] Error opening binary file: %s" % str(err)
+        except IOError as err:
+            print("[-] Error opening binary file: %s" % str(err))
             return
 
     # Process a MIR XML ZIP archive
     elif args.zip:
-        print "[+] Reading MIR XML zip archive: %s..." % args.zip
+        print("[+] Reading MIR XML zip archive: %s..." % args.zip)
         entries = read_zip(args.zip)
         if not entries:
-            print "[-] No Shim Cache entries found..."
+            print("[-] No Shim Cache entries found...")
         else:
             write_it(entries, args.out)
 
     # Read the binary file.
     elif args.bin:
-        print "[+] Reading binary file: %s..." % args.bin
+        print("[+] Reading binary file: %s..." % args.bin)
         try:
-            with file(args.bin, 'rb') as bin_data:
+            with open(args.bin, 'rb') as bin_data:
                 bin_data = bin_data.read()
-        except IOError, err:
-            print "[-] Error opening binary file: %s" % str(err)
+        except IOError as err:
+            print("[-] Error opening binary file: %s" % str(err))
             return
         entries = read_cache(bin_data)
         if not entries:
-            print "[-] No Shim Cache entries found..."
+            print("[-] No Shim Cache entries found...")
         else:
             write_it(entries, args.out)
 
     # Read the key data from a registry hive.
     elif args.reg:
-        print "[+] Reading .reg file: %s..." % args.reg
+        print("[+] Reading .reg file: %s..." % args.reg)
         entries = read_from_reg(args.reg)
         if not entries:
-            print "[-] No Shim Cache entries found..."
+            print("[-] No Shim Cache entries found...")
         else:
             write_it(entries, args.out)
 
     elif args.hive:
-        print "[+] Reading registry hive: %s..." % args.hive
+        print("[+] Reading registry hive: %s..." % args.hive)
         try:
             entries = read_from_hive(args.hive)
             if not entries:
-                print "[-] No Shim Cache entries found..."
+                print("[-] No Shim Cache entries found...")
             else:
                 write_it(entries, args.out)
-        except IOError, err:
-            print "[-] Error opening hive file: %s" % str(err)
+        except IOError as err:
+            print("[-] Error opening hive file: %s" % str(err))
             return
 
     # Read the local Shim Cache data from the current system
     elif args.local:
-        print "[+] Dumping Shim Cache data from the current system..."
+        print("[+] Dumping Shim Cache data from the current system...")
         entries = get_local_data()
         if not entries:
-            print "[-] No Shim Cache entries found..."
+            print("[-] No Shim Cache entries found...")
         else:
             write_it(entries, args.out)
 
